@@ -1,0 +1,62 @@
+name: Автопроверка решения
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  autograde:
+    runs-on: ubuntu-22.04
+    
+    steps:
+      - name: Checkout репозитория
+        uses: actions/checkout@v4
+      
+      - name: Установка Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Установка зависимостей
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest
+      
+      - name: Проверка синтаксиса Python
+        run: |
+          python -m py_compile task.py
+          echo "✅ Синтаксис Python корректен"
+      
+      - name: Запуск линтера flake8
+        run: |
+          flake8 task.py --max-line-length=120 --extend-ignore=E203,W503
+          echo "✅ Линтер пройден"
+        continue-on-error: true
+      
+      - name: Анализ качества кода
+        id: code_analysis
+        run: |
+          python tools/code_analysis.py
+          echo "ANALYSIS_COMPLETE=true" >> $GITHUB_ENV
+      
+      - name: Функциональное тестирование
+        id: functional_tests
+        run: |
+          python tools/run_task_tests.py
+          echo "TESTS_COMPLETE=true" >> $GITHUB_ENV
+      
+      - name: Генерация итогового отчёта
+        id: generate_summary
+        run: |
+          python tools/generate_summary.py
+        env:
+          GITHUB_STEP_SUMMARY: $GITHUB_STEP_SUMMARY
+      
+      - name: Итоговый статус
+        if: always()
+        run: |
+          echo "Автопроверка завершена"
+          exit ${{ steps.generate_summary.outcome == 'success' && 0 || 1 }}
