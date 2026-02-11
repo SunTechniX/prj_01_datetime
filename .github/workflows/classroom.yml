@@ -9,6 +9,7 @@ on:
 
 jobs:
   autograde:
+    name: "Автопроверка задания"
     runs-on: ubuntu-22.04
     
     steps:
